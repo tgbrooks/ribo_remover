@@ -17,6 +17,7 @@ import gzip
 import subprocess
 import time
 import contextlib
+import sys
 
 RIBO_DB = args.ribo_db
 
@@ -43,7 +44,7 @@ for input_fastq in args.input_fastqs:
     cmd = f"{CAT} {input_fastq} | " \
         "sed -n '1~4s/^@/>/p;2~4p' | " \
         f"{BLAST_DIR}/bin/blastn -task blastn -db {RIBO_DB} -query - -outfmt '10 qseqid' -evalue {E_VALUE_THRESHOLD} -num_threads {args.num_threads}"
-    print(cmd)
+    print(cmd, file=sys.stderr)
 
     blast = subprocess.Popen(
         cmd,
@@ -108,5 +109,5 @@ with contextlib.ExitStack() as stack:
                 out.write(qual)
 
 end_time = time.time()
-print(f"Out of {num_filtered + num_unfiltered} total reads, {num_filtered} ribo found and {num_unfiltered} remain")
-print(f"Done in {end_time - start_time:0.1f} seconds")
+print(f"Out of {num_filtered + num_unfiltered} total reads, {num_filtered} ribo found and {num_unfiltered} remain", file=sys.stderr)
+print(f"Done in {end_time - start_time:0.1f} seconds", file=sys.stderr)
