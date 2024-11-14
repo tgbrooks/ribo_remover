@@ -5,7 +5,7 @@ parser = argparse.ArgumentParser(
 )
 parser.add_argument("--input_fastqs", help="filenames of fastq files to filter. If ends in .gz, then assumed to be gzipped. If more than one fastq, all are assumed to have the same reads (such as for paired ends) in the same order and are filtered out if any read matches the database", nargs="+")
 parser.add_argument("--output_fastqs", help="filenames to write filtered fastq to. If ends in .gz, will output as gzipped. One filename per input fastq", nargs="+")
-parser.add_argument("--ribo_db", help="blast db of ribo to filter against", default="blast_db/ribodb")
+parser.add_argument("--ribo_db", help="blast db of ribo to filter against. Construct with `makeblastdb -dbtype nucl -in my_sequences.fa -out my_db_name", default="blast_db/ribodb")
 parser.add_argument("--num_threads", help="number of threads to use per blastn instance (one for each input fastq). Additional threads are also used for gzip and other aspects.", default=1, type=int)
 
 args = parser.parse_args()
@@ -27,6 +27,7 @@ BLASTN_EXE = "./blastn"
 
 # CODE TO MAKE THE RIBO DB:
 #makeblastdb -dbtype nucl -in {RIBO_SEQUENCES} -out {RIBO_DB}
+
 E_VALUE_THRESHOLD = 1e-7
 
 def maybe_gzip_open(filename, *args):
@@ -41,7 +42,7 @@ for input_fastq in args.input_fastqs:
     CAT = "zcat" if input_fastq.endswith(".gz") else "cat"
     cmd = f"{CAT} {input_fastq} | " \
         "sed -n '1~4s/^@/>/p;2~4p' | " \
-        f"{BLASTN_EXE} -task blastn -db {RIBO_DB} -query - -outfmt '10 qseqid' -evalue {E_VALUE_THRESHOLD} -num_threads {args.num_threads}"
+        f"{BLASTN_EXE} -task blastn -db {RIBO_DB} -query - -outfmt '10 qseqid' -evalue {E_VALUE_THRESHOLD} -num_threads {args.num_threads} -num_alignments 1"
     print(cmd, file=sys.stderr)
 
     blast = subprocess.Popen(
