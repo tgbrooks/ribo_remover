@@ -83,7 +83,7 @@ with contextlib.ExitStack() as stack:
 
         # Advance to next output of each blastn process
         for idx, blast in enumerate(blast_procs):
-            while filtered_ids[idx] != DONE:
+            while (filtered_ids[idx] is None or filtered_ids[idx] == id):
                 blastout = blast.stdout.readline()
 
                 if not blastout:
@@ -98,10 +98,6 @@ with contextlib.ExitStack() as stack:
                 filtered_ids[idx] = blastout.strip()
                 if filtered_ids[idx] == id:
                     filtered = True
-                else:
-                    # Any ID other than our current one indicates BLAST is ahead of our position
-                    # and so we need to stop looking to see if this is filtered
-                    break
 
         if filtered:
             num_filtered += 1
