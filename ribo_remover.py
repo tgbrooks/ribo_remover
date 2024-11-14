@@ -5,8 +5,9 @@ parser = argparse.ArgumentParser(
 )
 parser.add_argument("--input_fastqs", help="filenames of fastq files to filter. If ends in .gz, then assumed to be gzipped. If more than one fastq, all are assumed to have the same reads (such as for paired ends) in the same order and are filtered out if any read matches the database", nargs="+")
 parser.add_argument("--output_fastqs", help="filenames to write filtered fastq to. If ends in .gz, will output as gzipped. One filename per input fastq", nargs="+")
-parser.add_argument("--ribo_db", help="blast db of ribo to filter against. Construct with `makeblastdb -dbtype nucl -in my_sequences.fa -out my_db_name", default="blast_db/ribodb")
+parser.add_argument("--ribo_db", help="blast db of ribo to filter against. Construct with `makeblastdb -dbtype nucl -in my_sequences.fa -out my_db_name`", default="blast_db/ribodb")
 parser.add_argument("--num_threads", help="number of threads to use per blastn instance (one for each input fastq). Additional threads are also used for gzip and other aspects.", default=1, type=int)
+parser.add_argument("--stats_file", help="filename where to output statistics as a CSV file", default=None)
 
 args = parser.parse_args()
 
@@ -22,13 +23,15 @@ import sys
 RIBO_DB = args.ribo_db
 
 # TODO: package the blast executable
-#BLAST_DIR = "/project/itmatlab/SOFTWARE/PORT/PORT-0.8.5e-beta/norm_scripts/ncbi-blast-2.2.30+"
 BLASTN_EXE = "./blastn"
 
 # CODE TO MAKE THE RIBO DB:
 #makeblastdb -dbtype nucl -in {RIBO_SEQUENCES} -out {RIBO_DB}
 
 E_VALUE_THRESHOLD = 1e-7
+
+# We open the stats_file now so that the script fails immediately if it's not openable
+stats_file = open(args.stats_file, "wt") if args.stats_file is not None else None
 
 def maybe_gzip_open(filename, *args):
     if filename.endswith(".gz"):
@@ -112,5 +115,13 @@ with contextlib.ExitStack() as stack:
                 out.write(qual)
 
 end_time = time.time()
-print(f"Out of {num_filtered + num_unfiltered} total reads, {num_filtered} ribo found and {num_unfiltered} remain", file=sys.stderr)
+total = num_filtered + num_unfiltered
+pct_filtered = num_filtered / total
+pct_unfiltered = num_unfiltered / total
+print(f"Out of {total} total reads, {num_filtered} ({pct_filtered:0.1%}) ribo found and {num_unfiltered} ({pct_unfiltered:0.1%}) remain", file=sys.stderr)
 print(f"Done in {end_time - start_time:0.1f} seconds", file=sys.stderr)
+if stats_file is not None:
+    stats_file.write("class,number,percent,files\n")
+    stats_file.write(f"filtered,{num_filtered},{pct_filtered:0.1%},{' '.join(args.input_fastqs)}\n")
+    stats_file.write(f"unfiltered,{num_unfiltered},{pct_unfiltered:0.1%},{' '.join(args.input_fastqs)}\n")
+    stats_file.close()
