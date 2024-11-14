@@ -6,7 +6,7 @@ parser = argparse.ArgumentParser(
 parser.add_argument("--input_fastqs", help="filenames of fastq files to filter. If ends in .gz, then assumed to be gzipped. If more than one fastq, all are assumed to have the same reads (such as for paired ends) in the same order and are filtered out if any read matches the database", nargs="+")
 parser.add_argument("--output_fastqs", help="filenames to write filtered fastq to. If ends in .gz, will output as gzipped. One filename per input fastq", nargs="+")
 parser.add_argument("--ribo_db", help="blast db of ribo to filter against", default="blast_db/ribodb")
-parser.add_argument("--num_threads", help="number of threads to use per blastn instance (one for each input fastq).", default=1, type=int)
+parser.add_argument("--num_threads", help="number of threads to use per blastn instance (one for each input fastq). Additional threads are also used for gzip and other aspects.", default=1, type=int)
 
 args = parser.parse_args()
 
@@ -22,13 +22,11 @@ import sys
 RIBO_DB = args.ribo_db
 
 # TODO: package the blast executable
-BLAST_DIR = "/project/itmatlab/SOFTWARE/PORT/PORT-0.8.5e-beta/norm_scripts/ncbi-blast-2.2.30+"
+#BLAST_DIR = "/project/itmatlab/SOFTWARE/PORT/PORT-0.8.5e-beta/norm_scripts/ncbi-blast-2.2.30+"
+BLASTN_EXE = "./blastn"
 
-#TODO: there is actually a more recent one of these
-RIBO_SEQUENCES = "/project/itmatlab/SOFTWARE/PORT/PORT-0.8.5e-beta/norm_scripts/rRNA_mm9.fa"
-#TODO: regenerate the ribo db
 # CODE TO MAKE THE RIBO DB:
-#f"{BLAST_DIR}/bin/makeblastdb -dbtype nucl -in {RIBO_SEQUENCES} -out {RIBO_DB}"
+#makeblastdb -dbtype nucl -in {RIBO_SEQUENCES} -out {RIBO_DB}
 E_VALUE_THRESHOLD = 1e-7
 
 def maybe_gzip_open(filename, *args):
@@ -43,7 +41,7 @@ for input_fastq in args.input_fastqs:
     CAT = "zcat" if input_fastq.endswith(".gz") else "cat"
     cmd = f"{CAT} {input_fastq} | " \
         "sed -n '1~4s/^@/>/p;2~4p' | " \
-        f"{BLAST_DIR}/bin/blastn -task blastn -db {RIBO_DB} -query - -outfmt '10 qseqid' -evalue {E_VALUE_THRESHOLD} -num_threads {args.num_threads}"
+        f"{BLASTN_EXE} -task blastn -db {RIBO_DB} -query - -outfmt '10 qseqid' -evalue {E_VALUE_THRESHOLD} -num_threads {args.num_threads}"
     print(cmd, file=sys.stderr)
 
     blast = subprocess.Popen(
@@ -80,15 +78,23 @@ with contextlib.ExitStack() as stack:
         assert len(set(ids)) == 1, f"FASTQ files did not have matching read ids at: {', '.join(h.decode() for h in header_lines)}"
         id = ids[0]
 
-        # Advance to next output of each blastn process
+        # Check if previous line from blastn outputs match this read
         filtered = any(filtered_id == id for filtered_id in filtered_ids)
+
+        # Advance to next output of each blastn process
         for idx, blast in enumerate(blast_procs):
             while filtered_ids[idx] != DONE:
                 blastout = blast.stdout.readline()
+
                 if not blastout:
                     # We have finished with all blast output, everything else is NOT filtered
                     filtered_ids[idx] = DONE
+                    # Join on the blast process, which should now be done, to check for blast errors
+                    _, err = blast.communicate()
+                    if blast.returncode != 0:
+                        raise Exception(f"BLAST Failed with return code {blast.returncode}:\n{err.decode()}")
                     break
+
                 filtered_ids[idx] = blastout.strip()
                 if filtered_ids[idx] == id:
                     filtered = True
