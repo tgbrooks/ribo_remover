@@ -1,0 +1,5 @@
+include src/ribo_remover/data/*
+include setup.py
+global-exclude *.pyc
+global-exclude __pycache__
+global-exclude .DS_Store
