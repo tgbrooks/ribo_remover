@@ -7,7 +7,7 @@ setup(
     packages = ["ribo_remover"],
     package_dir={"": "src"},
     package_data={
-        "ribo_remover": ["data/*"],
+        "ribo_remover": ["data/*", "data/blast_db/*"],
     },
     python_requires=">=3.10",
 )
