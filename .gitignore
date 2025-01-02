@@ -2,3 +2,5 @@ venv/
 test/
 *.pyc
 data/
+*.egg-info
+build/
