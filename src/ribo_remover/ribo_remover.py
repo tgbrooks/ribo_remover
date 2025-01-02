@@ -45,7 +45,6 @@ def main():
             cmd = f"{CAT} {input_fastq} | " \
                 "sed -n '1~4s/^@/>/p;2~4p' | " \
                 f"{blastn_exe} -task blastn -db {ribo_db}/ribodb -query - -outfmt '10 qseqid' -evalue {E_VALUE_THRESHOLD} -num_threads {args.num_threads} -num_alignments 1"
-            print(cmd, file=sys.stderr)
 
             blast = subprocess.Popen(
                 cmd,
