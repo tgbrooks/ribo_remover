@@ -9,5 +9,5 @@ setup(
     package_data={
         "ribo_remover": ["data/*", "data/blast_db/*"],
     },
-    python_requires=">=3.10",
+    python_requires=">=3.9",
 )

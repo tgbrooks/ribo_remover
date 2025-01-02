@@ -40,8 +40,8 @@ def main():
     blast_procs = []
     for input_fastq in args.input_fastqs:
         CAT = "zcat" if input_fastq.endswith(".gz") else "cat"
-        with (resources.as_file(resources.files('ribo_remover.data').joinpath("blastn")) as blastn_exe,
-                resources.as_file(resources.files('ribo_remover.data').joinpath("blast_db")) as ribo_db):
+        with resources.as_file(resources.files('ribo_remover.data').joinpath("blastn")) as blastn_exe, \
+                resources.as_file(resources.files('ribo_remover.data').joinpath("blast_db")) as ribo_db:
             cmd = f"{CAT} {input_fastq} | " \
                 "sed -n '1~4s/^@/>/p;2~4p' | " \
                 f"{blastn_exe} -task blastn -db {ribo_db}/ribodb -query - -outfmt '10 qseqid' -evalue {E_VALUE_THRESHOLD} -num_threads {args.num_threads} -num_alignments 1"
