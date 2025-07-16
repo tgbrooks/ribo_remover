@@ -43,7 +43,7 @@ def ribo_remover(
         ) as ribo_db:
             cmd = (
                 f"{CAT} {input_fastq} | "
-                "sed -n '1~4s/^@/>/p;2~4p' | "
+                "fastq-converter | "
                 f"{blastn_exe} -task blastn -db {ribo_db}/ribodb -query - -outfmt '10 qseqid' -evalue {E_VALUE_THRESHOLD} -num_threads {num_threads} -num_alignments 1"
             )
 
@@ -58,7 +58,8 @@ def ribo_remover(
     start_time = time.time()
     num_filtered = 0
     num_unfiltered = 0
-    filtered_ids: list[None | str] = [None for _ in blast_procs]
+    read_num = 0
+    filtered_read_nums: list[None | str] = [None for _ in blast_procs]
     DONE = "!!!DONE!!!"
     with contextlib.ExitStack() as stack:
         # Open input fastqs
@@ -80,6 +81,7 @@ def ribo_remover(
             seq_lines = [in_fastq.readline() for in_fastq in in_fastqs]
             separator_lines = [in_fastq.readline() for in_fastq in in_fastqs]
             quality_lines = [in_fastq.readline() for in_fastq in in_fastqs]
+            read_num += 1
 
             # Extract read id
             ids = [
@@ -89,19 +91,24 @@ def ribo_remover(
             assert (
                 len(set(ids)) == 1
             ), f"FASTQ files did not have matching read ids at: {', '.join(h.decode() for h in header_lines)}"
-            id = ids[0]
 
             # Check if previous line from blastn outputs match this read
-            filtered = any(filtered_id == id for filtered_id in filtered_ids)
+            filtered = any(
+                filtered_read_num == read_num
+                for filtered_read_num in filtered_read_nums
+            )
 
             # Advance to next output of each blastn process
             for idx, blast in enumerate(blast_procs):
-                while filtered_ids[idx] is None or filtered_ids[idx] == id:
+                while (
+                    filtered_read_nums[idx] is None
+                    or filtered_read_nums[idx] == read_num
+                ):
                     blastout = blast.stdout.readline()
 
                     if not blastout:
                         # We have finished with all blast output, everything else is NOT filtered
-                        filtered_ids[idx] = DONE
+                        filtered_read_nums[idx] = DONE
                         # Join on the blast process, which should now be done, to check for blast errors
                         _, err = blast.communicate()
                         if blast.returncode != 0:
@@ -110,8 +117,8 @@ def ribo_remover(
                             )
                         break
 
-                    filtered_ids[idx] = blastout.strip()
-                    if filtered_ids[idx] == id:
+                    filtered_read_nums[idx] = int(blastout.strip())
+                    if filtered_read_nums[idx] == read_num:
                         filtered = True
 
             if filtered:
