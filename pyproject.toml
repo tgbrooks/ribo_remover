@@ -8,4 +8,7 @@ version = "0.1.0"
 requires-python = '>=3.9'
 
 [project.scripts]
-ribo-remover = "ribo_remover.ribo_remover:main"
+ribo-remover = "ribo_remover.runner:main"
+
+[tool.rye]
+dev-dependencies = ["pytest>=8.4.1", "ruff>=0.12.3"]

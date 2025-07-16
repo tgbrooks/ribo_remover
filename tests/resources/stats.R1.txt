@@ -1,0 +1,3 @@
+class,number,percent,files
+filtered,2,50.0%,tests/resources/R1.fastq
+unfiltered,2,50.0%,tests/resources/R1.fastq
