@@ -5,6 +5,7 @@ import contextlib
 import sys
 from typing import Union
 from importlib import resources
+from pathlib import Path
 
 # CODE TO MAKE THE RIBO DB:
 # makeblastdb -dbtype nucl -in {RIBO_SEQUENCES} -out {RIBO_DB}
@@ -43,7 +44,7 @@ def ribo_remover(
         ) as ribo_db:
             cmd = (
                 f"{CAT} {input_fastq} | "
-                "fastq-converter | "
+                f"{sys.executable} {Path(sys.executable).parent / 'fastq-converter'} | "
                 f"{blastn_exe} -task blastn -db {ribo_db}/ribodb -query - -outfmt '10 qseqid' -evalue {E_VALUE_THRESHOLD} -num_threads {num_threads} -num_alignments 1"
             )
 
